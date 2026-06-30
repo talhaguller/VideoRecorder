@@ -1,0 +1,13 @@
+
+mediapipe>=0.10.14          
+protobuf>=4.25.3,<5
+opencv-python==4.10.0.84    
+torch>=2.0
+torchaudio>=2.0
+torchvision>=0.15
+transformers==4.44.2        
+numpy>=1.24,<2.0            
+scipy>=1.10                 
+matplotlib>=3.7
+soundfile>=0.12           
+gradio>=4.0

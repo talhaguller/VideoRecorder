@@ -24,13 +24,11 @@ const CONFIG = {
   brightnessMin: 60,
   brightnessMax: 200,
 
-  // true: tüm kontroller uygun olmadan kayıt başlatılamaz / false: sadece uyarı
   requireAllChecksToRecord: true,
 
   detectIntervalMs: 120,
 
-  // DİKKAT: kayıt ham görüntüyü alır, aynalanmaz. true yaparsan kayıt ters görünür.
-  mirrorPreview: false,
+  mirrorPreview: true,
 
   guideOvalWidthPct: 55,
   guideOvalHeightPct: 78,
@@ -58,7 +56,7 @@ const CONFIG = {
 
 interface Props {
   onRecordingComplete: (blob: Blob) => void;
-  isReadyToRecord?: boolean; // dışarıdan kayıt kilidi (kamera izni değil)
+  isReadyToRecord?: boolean; 
   maxDurationSec?: number;
 }
 
@@ -78,7 +76,6 @@ const DEFAULT_ANALYSIS: Analysis = {
   ready: false,
 };
 
-// Her tarayıcı her formatı desteklemediği için en iyiden başlayıp desteklenen ilkini seçiyoruz.
 function pickMimeType(): string {
   const candidates = [
     'video/webm;codecs=vp9,opus',
@@ -112,7 +109,6 @@ export default function PositionedVideoRecorder({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Her karede değişen, ekranı yeniden çizmesini istemediğim değerleri ref'te tutuyorum.
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<FaceDetector | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -138,7 +134,7 @@ export default function PositionedVideoRecorder({
       let brightness = 128;
       const canvas = canvasRef.current;
       if (canvas && vw && vh) {
-        const sw = 64; // küçük tutuyorum, ölçüm için bu çözünürlük yeterli ve hızlı
+        const sw = 64; 
         const sh = Math.max(1, Math.round((sw * vh) / vw));
         canvas.width = sw;
         canvas.height = sh;
@@ -147,7 +143,6 @@ export default function PositionedVideoRecorder({
           ctx.drawImage(video, 0, 0, sw, sh);
           const { data } = ctx.getImageData(0, 0, sw, sh);
           let sum = 0;
-          // pikselleri atlayarak örnekliyorum; formül gözün algıladığı luminance
           for (let i = 0; i < data.length; i += 16) {
             sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
           }
@@ -167,7 +162,6 @@ export default function PositionedVideoRecorder({
         };
       }
 
-      // birden fazla yüz olabilir; en büyüğünü (en yakını) baz alıyorum
       const box = detections
         .map((d) => d.boundingBox!)
         .filter(Boolean)
@@ -181,7 +175,6 @@ export default function PositionedVideoRecorder({
       const offsetY = faceCy / vh - 0.5;
       if (CONFIG.mirrorPreview) offsetX = -offsetX;
 
-      // sorunları öncelik sırasıyla kontrol edip tek mesaj döndürüyorum
       if (widthRatio < CONFIG.faceWidthMinRatio) {
         return { status: 'warn', message: CONFIG.messages.tooSmall, arrow: null, ready: false };
       }
@@ -222,14 +215,12 @@ export default function PositionedVideoRecorder({
       now - lastDetectTsRef.current >= CONFIG.detectIntervalMs
     ) {
       lastDetectTsRef.current = now;
-      // detectForVideo sürekli artan zaman ister; aynı kareyi iki kez vermemek için kontrol
       if (video.currentTime !== lastVideoTimeRef.current) {
         lastVideoTimeRef.current = video.currentTime;
         try {
           const result = detector.detectForVideo(video, now);
           setAnalysis(analyzeFrame(result.detections, video));
         } catch {
-          // tek kare hatasını yut, döngü devam etsin
         }
       }
     }
@@ -253,7 +244,6 @@ export default function PositionedVideoRecorder({
         detectorRef.current = detector;
         setModelReady(true);
       } catch {
-        // model yüklenmese bile kamera/kayıt çalışsın, sadece yönlendirme olmaz
         if (!cancelled) setModelReady(true);
       }
 
@@ -287,7 +277,6 @@ export default function PositionedVideoRecorder({
 
     init();
 
-    // unmount'ta her şeyi kapat (kamera ışığı sönsün, sızıntı kalmasın)
     return () => {
       cancelled = true;
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
@@ -296,7 +285,6 @@ export default function PositionedVideoRecorder({
         try {
           recorderRef.current.stop();
         } catch {
-          /* yoksay */
         }
       }
       streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -304,7 +292,6 @@ export default function PositionedVideoRecorder({
       detectorRef.current = null;
       if (recordedUrlRef.current) URL.revokeObjectURL(recordedUrlRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startRecording = useCallback(() => {
@@ -343,12 +330,11 @@ export default function PositionedVideoRecorder({
       setElapsed((prev) => {
         const next = prev + 1;
         if (next >= maxDurationSec) {
-          stopRecording(); // süre dolunca otomatik durdur
+          stopRecording(); 
         }
         return next;
       });
     }, 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRecording, maxDurationSec, onRecordingComplete]);
 
   const stopRecording = useCallback(() => {
@@ -375,8 +361,6 @@ export default function PositionedVideoRecorder({
   const overlayColor =
     analysis.status === 'ok' ? 'green.500' : analysis.status === 'warn' ? 'orange.500' : 'red.500';
 
-  // MediaRecorder webm'leri süre bilgisi yazmaz; oynatıcı süreyi sonsuz sanıp oynatamaz.
-  // Videoyu çok ileri sarıp geri alarak tarayıcıya gerçek süreyi hesaplatıyorum.
   const fixWebmDuration = (e: SyntheticEvent<HTMLVideoElement>) => {
     const v = e.currentTarget;
     if (v.duration === Infinity || Number.isNaN(v.duration)) {
@@ -484,7 +468,7 @@ export default function PositionedVideoRecorder({
           )}
         </Box>
 
-        {/* gizli canvas: sadece parlaklık ölçümü için */}
+        {/* sadece parlaklık ölçümü için */}
         <canvas ref={canvasRef} style={{ display: 'none' }} />
 
         <HStack justify="space-between">
@@ -551,7 +535,10 @@ export default function PositionedVideoRecorder({
                   controls
                   playsInline
                   onLoadedMetadata={fixWebmDuration}
-                  style={{ width: '100%', height: '100%' }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                  }}
                 />
               </AspectRatio>
               <Button
